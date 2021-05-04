@@ -1,5 +1,28 @@
 <template>
-    <el-container style="height:calc(100% - 100px);">
+    <el-container style="height: calc(100% - 85px);margin-top: -20px;">
+        <el-header style="height:30px;line-height:30px;padding:0px;">
+            <el-dropdown style="padding-left:10px;float:right;">
+                <span class="el-dropdown-link">
+                    <svg-icon icon-class="theme"/>
+                </span>
+                <el-dropdown-menu slot="dropdown">
+                    <el-dropdown-item v-for="group in editor.theme.list" :key="group.name">
+                        <el-dropdown @command="onToggleTheme">
+                            <span class="el-dropdown-link">
+                            {{ group.name }}
+                            <i class="el-icon-arrow-down el-icon--right"></i>
+                            </span>
+                            <el-dropdown-menu slot="dropdown">
+                                <el-dropdown-item
+                                    v-for="item in group.items"
+                                    :key="item.name"
+                                    :command="item.name">{{ item.name }}</el-dropdown-item>
+                                </el-dropdown-menu>
+                        </el-dropdown>
+                    </el-dropdown-item>
+                </el-dropdown-menu>
+            </el-dropdown>
+        </el-header>
         <el-main :loading="editor.loading" style="padding:0px;overflow:hidden;">
             <Editor
                 v-model="editor.data"
@@ -16,6 +39,7 @@
 
 <script>
 import _ from 'lodash';
+
 export default{
     name: "BitlogConsoleView",
     props: {
@@ -37,26 +61,57 @@ export default{
             },
         }
     },
+    watch: {
+        'model.words':{
+            handler(val){
+                
+                if(_.isEmpty(val)) return false;
+
+                _.delay(()=>{
+                    let keywords = new RegExp(val.join("|"),"g");
+                    this.$refs.editor.editor.findAll(keywords,{
+                        caseSensitive: false,
+                        wholeWord: true,
+                        regExp: true
+                    });
+                },1000)
+            }
+        },
+        model(){
+            this.init();
+        }
+    },
     components:{
         Editor:require("vue2-ace-editor")
     },
-    created(){
+    mounted(){
         this.init();
 
-        /* this.eventHub.$on("WINDOW-RESIZE-EVENT",()=>{
+        this.eventHub.$on("WINDOW-RESIZE-EVENT",()=>{
             this.$refs.editor.editor.resize();
-        });  */
+        }); 
     },
     methods: {
+        onEditorInit(){
+            require('brace/ext/searchbox');
+            require("brace/ext/language_tools"); //language extension prerequsite...
+            require(`brace/mode/${this.editor.lang.value}`); //language
+            require(`brace/snippets/${this.editor.lang.value}`); //snippet
+            require(`brace/theme/${this.editor.theme.value}`); //language
+        },
+        onToggleTheme(val){
+            require(`brace/theme/${val}`); //language
+            this.editor.theme.value = val;
+        },
         init(){
-            this.loading = true;
+            this.editor.loading = true;
             let param = encodeURIComponent(JSON.stringify( this.model ));
 
             this.m3.callFS("/matrix/m3log/searchBitlogByTerm.js",param).then(rtn=>{
                 this.editor.data = this.arrayToCsv(rtn.message.result);
-                this.loading = false;
+                this.editor.loading = false;
             }).catch(()=>{
-                this.loading = false;
+                this.editor.loading = false;
             })
         },
         arrayToCsv(data){
@@ -107,6 +162,24 @@ export default{
 
             return finalStr;
         }
-    }    
+    }/* ,
+    destroyed(){
+        this.$refs.editor.editor.destroy();
+        this.$refs.editor.editor.container.remove();
+    } */
 }
 </script>
+
+<style>
+    /* .ace_editor .ace_marker-layer .ace_selection {
+        background: #fbde868a !important;
+    }
+    .ace_editor .ace_marker-layer .ace_active-line {
+        background: #fbde868a !important;
+    } */
+    /* ace find highlight */
+    .ace_editor .ace_marker-layer .ace_selected-word {
+        background: #fbde868a !important;
+        border: 1px solid /*[[base-color]]*/ #f3f5f8 !important;
+    }
+</style>

@@ -7,7 +7,7 @@
             </h4>
             <h4>选择日志：
                 <el-cascader
-                    v-model="bitlog.selectedBuckets"
+                    v-model="bitlog.buckets"
                     :options="buckets"
                     :props="{ multiple: true,checkStrictly: true }"
                     clearable
@@ -17,29 +17,29 @@
             </h4>
             <h4> 关键字符： 
                 <el-tag
-                    :key="tag"
-                    v-for="tag in bitlog.word.words"
+                    :key="word"
+                    v-for="word in bitlog.word.words"
                     closable
                     :disable-transitions="false"
-                    @close="onWordClose(tag)">
-                    {{tag}}
+                    @close="onWordClose(word)">
+                    {{word}}
                 </el-tag>
                 <el-input
                     class="input-new-tag"
                     v-if="bitlog.word.inputVisible"
                     v-model="bitlog.word.inputValue"
                     ref="saveTagInput"
-                    size="small"
+                    size="mini"
                     @keyup.enter.native="onWordInputConfirm"
                     @blur="onWordInputConfirm"
                 >
                 </el-input>
-                <el-button v-else class="button-new-tag" size="small" @click="onWordShowInput" type="success">+ 关键字</el-button>
+                <el-button v-else class="button-new-tag" @click="onWordShowInput" type="default">+ 关键字</el-button>
             </h4>
             
             <div><span style="font-weight:600;">时间区间：</span>
                 <el-date-picker
-                    v-model="kpi.time"
+                    v-model="bitlog.time"
                     :picker-options="kpi.options"
                     type="datetimerange"
                     value-format="timestamp"
@@ -49,45 +49,46 @@
                     ref="datePicker">
                 </el-date-picker>
             </div>
-
-            <grid-layout 
-                    :layout.sync="kpi.list"
-                     :col-num="layout.colNum"
-                     :row-height="40"
-                     :is-draggable="layout.draggable"
-                     :is-resizable="layout.resizable"
-                     :vertical-compact="true"
-                     :use-css-transforms="true"
-                     style="width:100%;">
-
-                <grid-item :static="item.static"
-                       :x="item.x"
-                       :y="item.y"
-                       :w="item.w"
-                       :h="item.h"
-                       :i="item.i"
-                        v-for="(item,index) in kpi.list"
-                        :key="index"
-                        @resize="onGridItemResizeEvent"
-                        @move="onGridItemMoveEvent"
-                        @resized="onGridItemResizedEvent"
-                        @container-resized="onGridItemContainerResizedEvent"
-                        @moved="onGridItemMovedEvent">
-
-                    <el-card style="height:100%;">
-                        <div slot="header" class="clearfix" style="padding:5px;">
-                            {{ item.id }} / {{ item.field }} / {{ item.file }}
-                        </div>
-
-                        <bitlog-console-view :model="item"></bitlog-console-view>
-                        
-                    </el-card>
-                    <span class="remove" @click="removeItem(item.i)">x</span>
-                </grid-item>
-
-            </grid-layout>
-        
         </div>
+
+        <grid-layout 
+                :layout.sync="kpi.list"
+                    :col-num="layout.colNum"
+                    :row-height="40"
+                    :is-draggable="layout.draggable"
+                    :is-resizable="layout.resizable"
+                    :vertical-compact="true"
+                    :use-css-transforms="true">
+
+            <grid-item :static="item.static"
+                    :x="item.x"
+                    :y="item.y"
+                    :w="item.w"
+                    :h="item.h"
+                    :i="item.i"
+                    v-for="(item,index) in kpi.list"
+                    :key="index"
+                    @resize="onGridItemResizeEvent"
+                    @move="onGridItemMoveEvent"
+                    @resized="onGridItemResizedEvent"
+                    @container-resized="onGridItemContainerResizedEvent"
+                    @moved="onGridItemMovedEvent"
+                    drag-ignore-from=".no-drag"
+                    :ref="'item'+item.i">
+
+                <el-card style="height:100%;">
+                    <div slot="header" class="clearfix" style="padding:5px;">
+                        {{ item.id }} / {{ item.field }} / {{ item.file }}
+                    </div>
+
+                    <bitlog-console-view :model="item" class="no-drag"></bitlog-console-view>
+                    
+                </el-card>
+                <el-button type="text" icon="el-icon-full-screen" @click="onFullScreen(item.i)" style="position: absolute;top: 10px;right: 30px;font-weight: 900;color: #b2b2b2;"></el-button>
+                <el-button type="text" icon="el-icon-close" @click="onRemoveItem(item.i)" style="position: absolute;top: 10px;right: 10px;font-weight: 900;color: #b2b2b2;"></el-button>
+            </grid-item>
+
+        </grid-layout>
 
     </div>
 </template>
@@ -118,7 +119,6 @@ export default{
             },
             kpi: {
                 list: [],
-                time: [this.moment().add(-1,'hour').format('YYYY-MM-DD HH:mm'),this.moment().format('YYYY-MM-DD HH:mm')],
                 options: {
                     shortcuts:[
                         {
@@ -213,7 +213,8 @@ export default{
                 ]}
             },
             bitlog: {
-                selectedBuckets:null,
+                buckets: [],
+                time: [this.moment().add(-1,'hour').format('YYYY-MM-DD HH:mm'),this.moment().format('YYYY-MM-DD HH:mm')],
                 word: {
                     words: [],
                     inputVisible: false,
@@ -239,28 +240,44 @@ export default{
         }
     },
     watch: {
-        'kpi.time'(val){
+        'bitlog.time'(val){
+            
             _.forEach(this.kpi.list,(v)=>{
                 this.$set(v,'time',val);
             })
             
+            this.onSetKpiList();
+
             Cookies.set('m3performance-time',val);
+        },
+        'bitlog.buckets':{
+            handler(){
+                this.onSetKpiList();
+            }
+        },
+        'bitlog.word.words':{
+            handler(){
+                this.onSetKpiList();
+            }
         }
     },
     created(){
-        this.kpi.time = JSON.parse(Cookies.get('m3performance-time'));
+        this.bitlog.time = JSON.parse(Cookies.get('m3performance-time'));
     },
     methods: {
         onShowDatePicker(){
             this.$refs.datePicker.focus();
         },
         onBucketChange(val){
+            this.bitlog.buckets = val;
+        },
+        onSetKpiList(){
             
             this.kpi.list = [];
 
             _.forEach(this.entity,e=>{
                 
-                _.forEach(val,(v)=>{
+                _.forEach(this.bitlog.buckets,(v)=>{
                     
                     let layout = {
                                     x: ( this.kpi.list.length * 6) % (this.layout.colNum || 12),
@@ -271,27 +288,30 @@ export default{
                                 };
                     this.layout.index++;
 
-                    this.kpi.list.push( _.extend(layout,{ id: e.id, class: e.class, field: v[0], file: v[1], time: this.kpi.time, words: this.bitlog.word.words }) );
+                    this.kpi.list.push( _.extend(layout,{ id: e.id, class: e.class, field: v[0], file: v[1], time: this.bitlog.time, words: this.bitlog.word.words }) );
                 })
             })
 
-            this.kpi.list = _.uniqBy(this.kpi.list,'field');
+            //this.kpi.list = _.uniqBy(this.kpi.list,'field');
         },
-        removeItem(val) {
+        onFullScreen(val){
+            this.m3.fullScreenByEl(this.$refs['item'+val][0].$el);
+        },
+        onRemoveItem(val) {
             const index = this.kpi.list.map(item => item.i).indexOf(val);
             this.kpi.list.splice(index, 1);
         },
         onGridItemResizeEvent(){
-            this.eventHub.$emit("WINDOW-RESIZE-EVENT");
+            //this.eventHub.$emit("WINDOW-RESIZE-EVENT");
         },
         onGridItemMoveEvent(){
-            this.eventHub.$emit("WINDOW-RESIZE-EVENT");
+            //this.eventHub.$emit("WINDOW-RESIZE-EVENT");
         },
         onGridItemResizedEvent(){
             this.eventHub.$emit("WINDOW-RESIZE-EVENT");
         },
         onGridItemContainerResizedEvent(){
-            this.eventHub.$emit("WINDOW-RESIZE-EVENT");
+            //this.eventHub.$emit("WINDOW-RESIZE-EVENT");
         },
         onGridItemMovedEvent(){
             this.eventHub.$emit("WINDOW-RESIZE-EVENT");
@@ -299,14 +319,12 @@ export default{
         onWordClose(tag) {
             this.bitlog.word.words.splice(this.bitlog.word.words.indexOf(tag), 1);
         },
-
         onWordShowInput() {
             this.bitlog.word.inputVisible = true;
             this.$nextTick(() => {
                 this.$refs.saveTagInput.$refs.input.focus();
             });
         },
-
         onWordInputConfirm() {
             let inputValue = this.bitlog.word.inputValue;
             if (inputValue) {
@@ -341,7 +359,8 @@ export default{
     cursor: pointer;
 }
 .vue-grid-layout {
-    background: #eee;
+    background: #f2f2f2;
+    padding: 0px;
 }
 .vue-grid-item:not(.vue-grid-placeholder) {
     box-shadow: 0 2px 4px rgba(0, 0, 0, .12), 0 0 6px rgba(0, 0, 0, .04);
@@ -389,7 +408,7 @@ export default{
     cursor: pointer;
 }
 
-.el-tag + .el-tag {
+    .el-tag + .el-tag {
     margin-left: 10px;
   }
   .button-new-tag {

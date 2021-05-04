@@ -10,6 +10,7 @@ const theme = Cookies.get("m3-theme")?themeColor[Cookies.get("m3-theme")]:'#252D
 import(`./assets/theme/element-${theme}/index.css`)
 import moment from 'moment'
 import VueSplit from 'vue-split-panel'
+import './icons'
 
 Vue.use(VueSplit);
 Vue.use(VueI18n);
