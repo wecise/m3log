@@ -47,6 +47,7 @@ export default{
     },
     data(){
         return {
+            dragging: false,
             editor: {
                 data: null,
                 loading: false,
@@ -58,7 +59,7 @@ export default{
                     value: "chrome",
                     list: this.m3.EDITOR_THEME
                 }
-            },
+            }
         }
     },
     watch: {
@@ -162,11 +163,7 @@ export default{
 
             return finalStr;
         }
-    }/* ,
-    destroyed(){
-        this.$refs.editor.editor.destroy();
-        this.$refs.editor.editor.container.remove();
-    } */
+    }
 }
 </script>
 
