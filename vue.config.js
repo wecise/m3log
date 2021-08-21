@@ -5,7 +5,6 @@ function resolve(dir) {
     return path.join(__dirname, dir)
 }
 
-
 module.exports = {
     devServer: {
         open: process.platform === 'darwin',
@@ -15,12 +14,7 @@ module.exports = {
         hotOnly: false,
     },
 
-    publicPath: process.env.NODE_ENV === 'production' 
-        ? '/static/app/matrix/m3log' 
-        : '/',
-
-    outputDir: 'app/matrix/m3log',
-    
+    outputDir: 'app/matrix/' + process.env.VUE_APP_M3_APP,
     productionSourceMap: false,
 
     configureWebpack: config => {
@@ -34,15 +28,17 @@ module.exports = {
                     new WebpackZipPlugin({
                         initialFile: 'app',
                         endPath: './',
-                        zipName: 'app.zip',
-                        //frontShell: 'sed -i \'\' \'s/src="/src="\\/static\\/app\\/matrix\\/m3-app-template/g\; s/href="/href="\\/static\\/app\\/matrix\\/m3-app-template/g\' ./app/matrix/m3-app-template/index.html',
-                        behindShell: './deploy.sh'
+                        zipName: process.env.VUE_APP_M3_APP+'.zip',
+                        //frontShell: 'sed -i \'\' \'s/src="/src="\\/static\\/app\\/matrix\\/m3event/g\; s/href="/href="\\/static\\/app\\/matrix\\/m3event/g\' ./app/matrix/m3event/index.html',
+                        //frontShell: 'sed -i \'\' \'s/src="/src="\\/static\\/app\\/matrix\\/m3event/g\; s/href="/href="\\/static\\/app\\/matrix\\/m3event/g\' ./app/matrix/m3event/index.html',
+                        behindShell: './deploy.sh ' + process.env.VUE_APP_M3_HOST + ' ' + process.env.VUE_APP_M3_COMPANY + ' ' + process.env.VUE_APP_M3_USERNAME + ' "' + process.env.VUE_APP_M3_PASSWORD + '" ' + process.env.VUE_APP_M3_APP+".zip"
                     })
                 ]
             }
         }
-    },
-    chainWebpack(config) {
+      },
+
+      chainWebpack(config) {
         
         // set svg-sprite-loader
         config.module
@@ -61,6 +57,7 @@ module.exports = {
           })
       
           .end()
-    }
+    },
 
+    publicPath: process.env.NODE_ENV === 'production'?'/static/app/matrix/'+process.env.VUE_APP_M3_APP:''
 }
